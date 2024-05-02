@@ -1,17 +1,17 @@
 #include "./entrypoint.hpp"
-#include "../Core/Inc/main.h"
 
-#include "drivers/gpio.hpp"
-#include "drivers/time.hpp"
+#include "base/gpio.hpp"
+#include "base/timer.hpp"
 
-#include "tim.h"
-
-#include <algorithm>
-#include <memory>
-#include <type_traits>
+#include "param.hpp"
+#include <cassert>
 
 void entrypoint()
 {
+
     while (true) {
+
+        device::led_r.toggle();
+        base::delay(100);
     };
 }
