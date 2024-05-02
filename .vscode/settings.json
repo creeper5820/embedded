@@ -1,5 +1,9 @@
 {
     "clangd.arguments": [
         "--query-driver=/usr/bin/arm-none-eabi-g++"
+    ],
+    "editor.formatOnSave": true,
+    "cSpell.words": [
+        "htim"
     ]
 }
