@@ -5,6 +5,7 @@
     "editor.formatOnSave": true,
     "cSpell.words": [
         "GPIO",
+        "hcan",
         "htim",
         "huart",
         "USART"
