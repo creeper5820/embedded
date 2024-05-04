@@ -1,6 +1,7 @@
 #include <cassert>
 
 #include "param.hpp"
+#include <cstdint>
 #include <main.h>
 
 const char* __assert_file = nullptr;
@@ -19,6 +20,8 @@ void __assert_func(const char* file, int line, const char* function, const char*
     device::led_r.set();
     device::led_g.reset();
     device::led_b.reset();
+
+    device::motor.set_speed((int16_t)0, (int16_t)0);
 
     while (true)
         ;

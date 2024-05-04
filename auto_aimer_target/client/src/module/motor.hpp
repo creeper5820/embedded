@@ -1,7 +1,6 @@
 #pragma once
 
 #include "../base/can.hpp"
-#include "../utility/endian.hpp"
 #include "../utility/pid.hpp"
 
 #include <algorithm>
@@ -9,11 +8,13 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <memory>
 
 namespace module {
 class Motor {
 public:
     static constexpr int16_t current_limit = 16384;
+    using Pid = utility::Pid<double, double>;
 
     struct Status {
         int16_t angle;
@@ -104,9 +105,12 @@ public:
         header.TransmitGlobalTime = DISABLE;
 
         client_.set_header_tx(header);
+
+        pid_move_ = std::make_unique<Pid>();
+        pid_rotate_ = std::make_unique<Pid>();
     }
 
-    void set(const int16_t& current_move, const int16_t& current_rotate)
+    void set_speed(const int16_t& current_move, const int16_t& current_rotate)
     {
         auto control = Control {};
         control[id_move_ - 0x201] = current_move;
@@ -118,24 +122,45 @@ public:
         client_.send(reinterpret_cast<uint8_t*>(&data));
     }
 
-    void set(const double& speed_move, const double& speed_rotate)
+    void set_speed(const double& speed_move, const double& speed_rotate)
     {
-        set(static_cast<int16_t>(std::clamp(speed_move, -1.0, 1.0) * current_limit),
+        set_speed(static_cast<int16_t>(std::clamp(speed_move, -1.0, 1.0) * current_limit),
             static_cast<int16_t>(std::clamp(speed_rotate, -1.0, 1.0) * current_limit));
     }
 
-    void set_with_pid(const double& speed_move, const double& speed_rotate)
+    void set_pid_param(Pid& pid_move, Pid& pid_rotate)
     {
-        assert(pid_move_.is_initialized());
-        assert(pid_rotate_.is_initialized());
+        pid_move_.reset(&pid_move);
+        pid_rotate_.reset(&pid_rotate);
+    }
+
+    void set_pid_param(
+        const double& p_m, const double& i_m, const double& d_m,
+        const double& p_r, const double& i_r, const double& d_r)
+    {
+        pid_move_->set(p_m, i_m, d_m);
+        pid_rotate_->set(p_r, i_r, d_r);
+    }
+
+    void set_speed_with_pid(const double& speed_move, const double& speed_rotate)
+    {
+        assert(pid_move_->is_initialized());
+        assert(pid_rotate_->is_initialized());
 
         auto real_speed_move = static_cast<double>(status_move_.speed) / current_limit;
         auto real_speed_rotate = static_cast<double>(status_rotate_.speed) / current_limit;
 
-        auto output_move = pid_move_.update(real_speed_move, speed_move);
-        auto output_rotate = pid_rotate_.update(real_speed_rotate, speed_rotate);
+        auto output_move = pid_move_->update(real_speed_move, speed_move);
+        auto output_rotate = pid_rotate_->update(real_speed_rotate, speed_rotate);
 
-        set(output_move, output_rotate);
+        set_speed(output_move, output_rotate);
+    }
+
+    void reset()
+    {
+        pid_move_->reset();
+        pid_rotate_->reset();
+        set_speed(0., 0.);
     }
 
     void update(const uint8_t data[8], const uint32_t& id)
@@ -153,8 +178,8 @@ private:
     Status status_move_;
     Status status_rotate_;
 
-    utility::Pid<double, double> pid_move_;
-    utility::Pid<double, double> pid_rotate_;
+    std::unique_ptr<Pid> pid_move_;
+    std::unique_ptr<Pid> pid_rotate_;
 
     base::CanClient client_;
 };

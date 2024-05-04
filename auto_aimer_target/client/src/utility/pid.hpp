@@ -25,6 +25,8 @@ public:
         p_ = p;
         i_ = i;
         d_ = d;
+
+        is_initialized_ = true;
     }
 
     void reset()

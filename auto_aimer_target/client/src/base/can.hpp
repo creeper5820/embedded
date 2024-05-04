@@ -51,6 +51,16 @@ public:
         assert(HAL_CAN_ActivateNotification(hcan_, type_active) == HAL_OK);
     }
 
+    void start()
+    {
+        HAL_CAN_Start(hcan_);
+    }
+
+    void stop()
+    {
+        HAL_CAN_Stop(hcan_);
+    }
+
     void callback(CAN_HandleTypeDef* hcan)
     {
         if (hcan != hcan_)
