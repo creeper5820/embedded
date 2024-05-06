@@ -4,23 +4,20 @@
 #include "base/serial.hpp"
 #include "base/timer.hpp"
 
-#include "module/motor.hpp"
+#include "module/target.hpp"
+
 #include "param.hpp"
-#include "stm32_hal_legacy.h"
-#include "stm32f4xx_hal_gpio.h"
-#include "tim.h"
 
 #include <cassert>
 #include <cstdint>
 #include <cstring>
 
-double speed = 0;
 uint8_t data[10];
 uint64_t watchdog_count = 0;
 bool is_serial_received = false;
 int8_t direction_move = 1;
 
-// timer callback ////////////
+// TIMER CALLBACK ////////////
 void watchdog_timer_callback()
 {
     if (!is_serial_received)
@@ -48,13 +45,13 @@ void motor_control_timer_callback()
     if (data[0] != 233 && data[3] != 233)
         return;
 
-    auto speed_move = static_cast<double>(data[1]) / 100;
-    auto speed_rotate = static_cast<double>(data[2]) / 100;
+    auto speed_move = static_cast<double>(data[1]) / 500;
+    auto speed_rotate = static_cast<double>(data[2]) / 500;
 
-    device::motor.set_speed_with_pid(speed_move * direction_move, speed_rotate);
+    device::target.set_speed_with_pid(speed_move * direction_move, speed_rotate);
 }
 
-// serial callback ///////////////////////////////////////////////////
+// SERIAL CALLBACK ///////////////////////////////////////////////////
 void serial_receive_callback(UART_HandleTypeDef* huart, uint16_t size)
 {
     (void)huart;
@@ -65,12 +62,14 @@ void serial_receive_callback(UART_HandleTypeDef* huart, uint16_t size)
     device::serial.receive_idle<base::Serial::Mode::DMA>(data, 10);
 }
 
-// can callback/////////////////////////////////////////////////////////////
+// CAN CALLBACK /////////////////////////////////////////////////////////////
+CAN_RxHeaderTypeDef global_debug_in_ozone;
 void can_receive_callback(CAN_RxHeaderTypeDef& _header, const uint8_t* _data)
 {
-    device::motor.update(_data, _header.StdId);
+    global_debug_in_ozone = _header;
+    device::target.update(_data, _header.StdId);
 }
-// key callback///
+// kKEY CALLBACK /////////////////////
 void key_callback(uint16_t GPIO_Pin)
 {
     (void)GPIO_Pin;
@@ -84,9 +83,9 @@ void button_1_callback(uint16_t GPIO_Pin)
 
     if (device::button_1.read() == GPIO_PIN_SET) {
         device::timer.stop();
-        device::motor.reset();
+        device::target.reset();
 
-        direction_move = 1;
+        direction_move = -1;
 
         base::delay(&htim2, 100 * 1000);
         device::timer.start();
@@ -100,24 +99,24 @@ void button_2_callback(uint16_t GPIO_Pin)
 
     if (device::button_2.read() == GPIO_PIN_SET) {
         device::timer.stop();
-        device::motor.reset();
+        device::target.reset();
 
-        direction_move = -1;
+        direction_move = 1;
 
         base::delay(&htim2, 100 * 1000);
         device::timer.start();
     }
 }
 
-// entrypoint ///
+// ENTRYPOINT ///
 void entrypoint()
 {
     // init
     device::can_server.init();
     device::serial.init();
-    device::motor.init();
+    device::target.init();
 
-    device::motor.set_pid_param(10, 0, 0, 10, 0, 0);
+    device::target.set_pid_param(10, 0, 0, 10, 0, 0);
 
     // callback register
     device::can_server.set_callback(can_receive_callback);

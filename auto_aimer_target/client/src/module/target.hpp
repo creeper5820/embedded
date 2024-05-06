@@ -11,7 +11,7 @@
 #include <memory>
 
 namespace module {
-class Motor {
+class Target {
 public:
     static constexpr int16_t current_limit = 16384;
     using Pid = utility::Pid<double, double>;
@@ -88,10 +88,12 @@ public:
     };
 
 public:
-    Motor(uint32_t id_move, uint32_t id_rotate, const base::CanClient& client)
+    Target(uint32_t id_move, uint32_t id_rotate,
+        const base::CanClient& client_move, const base::CanClient& client_rotate)
         : id_move_(id_move)
         , id_rotate_(id_rotate)
-        , client_(client)
+        , client_move_(client_move)
+        , client_rotate_(client_rotate)
     {
     }
 
@@ -104,7 +106,15 @@ public:
         header.DLC = 8;
         header.TransmitGlobalTime = DISABLE;
 
-        client_.set_header_tx(header);
+        client_move_.set_header_tx(header);
+
+        header.StdId = 0x1ff;
+        header.IDE = CAN_ID_STD;
+        header.RTR = CAN_RTR_DATA;
+        header.DLC = 8;
+        header.TransmitGlobalTime = DISABLE;
+
+        client_rotate_.set_header_tx(header);
 
         pid_move_ = std::make_unique<Pid>();
         pid_rotate_ = std::make_unique<Pid>();
@@ -112,14 +122,20 @@ public:
 
     void set_speed(const int16_t& current_move, const int16_t& current_rotate)
     {
-        auto control = Control {};
-        control[id_move_ - 0x201] = current_move;
-        control[id_rotate_ - 0x201] = current_rotate;
+        auto control_move = Control {};
+        control_move[id_move_ - 0x201] = current_move;
 
-        uint8_t data[8];
-        data << control;
+        auto control_rotate = Control {};
+        control_rotate[id_rotate_ - 0x205] = current_rotate;
 
-        client_.send(reinterpret_cast<uint8_t*>(&data));
+        uint8_t data_move[8];
+        data_move << control_move;
+
+        uint8_t data_rotate[8];
+        data_rotate << control_rotate;
+
+        client_move_.send(data_move);
+        client_rotate_.send(data_rotate);
     }
 
     void set_speed(const double& speed_move, const double& speed_rotate)
@@ -160,6 +176,7 @@ public:
     {
         pid_move_->reset();
         pid_rotate_->reset();
+
         set_speed(0., 0.);
     }
 
@@ -167,6 +184,7 @@ public:
     {
         if (id == id_move_)
             status_move_ << data;
+
         else if (id == id_rotate_)
             status_rotate_ << data;
     }
@@ -181,6 +199,7 @@ private:
     std::unique_ptr<Pid> pid_move_;
     std::unique_ptr<Pid> pid_rotate_;
 
-    base::CanClient client_;
+    base::CanClient client_move_;
+    base::CanClient client_rotate_;
 };
 }

@@ -4,13 +4,11 @@
 #include "base/serial.hpp"
 #include "base/timer.hpp"
 
-#include "main.h"
-#include "module/motor.hpp"
-#include "tim.h"
+#include "module/target.hpp"
 
 namespace device {
 
-inline auto motor = module::Motor(0x201, 0x202, &hcan1);
+inline auto target = module::Target(0x204, 0x206, &hcan1, &hcan1);
 inline auto serial = base::Serial(&huart1);
 inline auto timer = base::Timer(&htim1);
 inline auto can_server = base::CanServer(&hcan1);
