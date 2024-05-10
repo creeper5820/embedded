@@ -4,8 +4,12 @@
 #include <WiFi.h>
 
 namespace global {
-constexpr char* ssid = "Alliance_SentryDebug";
-constexpr char* password = "sentryno1";
+// constexpr char* ssid = "Alliance_SentryDebug";
+// constexpr char* password = "sentryno1";
+
+constexpr char* ssid = "AllianceTeam2.4G";
+constexpr char* password = "rm-alliance.icu";
+
 constexpr char* host_name = "esp32_auto_aimer_target";
 
 constexpr auto rx_pin = 16;

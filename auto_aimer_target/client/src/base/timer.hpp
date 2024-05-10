@@ -2,11 +2,13 @@
 
 #include "tim.h"
 
+#include <array>
 #include <cassert>
 #include <cstdint>
 
 namespace base {
-constexpr size_t task_size_max = 10;
+
+constexpr size_t activity_limit = 10;
 
 inline void delay(uint32_t ms)
 {
@@ -48,34 +50,34 @@ public:
         if (htim != htim_)
             return;
 
-        for (int i = 0; i < task_size_; i++) {
-            if (count_tick_ % task_[i].tick == 0)
-                task_[i].callback();
-        }
-
         count_tick_++;
+
+        for (int i = 0; i < activity_size_; i++) {
+            if (count_tick_ % activity_array_[i].tick == 0)
+                activity_array_[i].callback();
+        }
     }
 
-    void add_task(uint16_t tick, Callback callback)
+    void register_activity(uint16_t tick, Callback callback)
     {
-        assert(task_size_ < task_size_max);
+        assert(activity_size_ < activity_limit);
 
-        task_size_++;
+        activity_size_++;
 
-        task_[task_size_ - 1].callback = callback;
-        task_[task_size_ - 1].tick = tick;
+        activity_array_[activity_size_ - 1].callback = callback;
+        activity_array_[activity_size_ - 1].tick = tick;
     }
 
 private:
-    struct Task {
+    struct Activity {
         Callback callback;
         uint16_t tick;
     };
 
 private:
     TIM_HandleTypeDef* htim_;
-    Task task_[task_size_max];
+    std::array<Activity, activity_limit> activity_array_;
     uint64_t count_tick_ = 0;
-    uint8_t task_size_ = 0;
+    uint8_t activity_size_ = 0;
 };
 }

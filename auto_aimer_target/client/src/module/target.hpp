@@ -13,7 +13,11 @@
 namespace module {
 class Target {
 public:
-    static constexpr int16_t current_limit = 16384;
+    static constexpr int16_t current_limit_ = 16384;
+
+    static constexpr int16_t speed_rotate_max_ = 300;
+    static constexpr int16_t speed_move_max_ = 10000;
+
     using Pid = utility::Pid<double, double>;
 
     struct Status {
@@ -99,25 +103,23 @@ public:
 
     void init()
     {
-        auto header = base::CanClient::HeaderType();
-        header.StdId = 0x200;
-        header.IDE = CAN_ID_STD;
-        header.RTR = CAN_RTR_DATA;
-        header.DLC = 8;
-        header.TransmitGlobalTime = DISABLE;
+        auto temp = base::CanClient::HeaderType();
 
-        client_move_.set_header_tx(header);
+        temp.StdId = 0x200;
+        temp.IDE = CAN_ID_STD;
+        temp.RTR = CAN_RTR_DATA;
+        temp.DLC = 8;
+        temp.TransmitGlobalTime = DISABLE;
 
-        header.StdId = 0x1ff;
-        header.IDE = CAN_ID_STD;
-        header.RTR = CAN_RTR_DATA;
-        header.DLC = 8;
-        header.TransmitGlobalTime = DISABLE;
+        client_move_.set_header_tx(temp);
 
-        client_rotate_.set_header_tx(header);
+        temp.StdId = 0x1ff;
+        temp.IDE = CAN_ID_STD;
+        temp.RTR = CAN_RTR_DATA;
+        temp.DLC = 8;
+        temp.TransmitGlobalTime = DISABLE;
 
-        pid_move_ = std::make_unique<Pid>();
-        pid_rotate_ = std::make_unique<Pid>();
+        client_rotate_.set_header_tx(temp);
     }
 
     void set_speed(const int16_t& current_move, const int16_t& current_rotate)
@@ -140,42 +142,42 @@ public:
 
     void set_speed(const double& speed_move, const double& speed_rotate)
     {
-        set_speed(static_cast<int16_t>(std::clamp(speed_move, -1.0, 1.0) * current_limit),
-            static_cast<int16_t>(std::clamp(speed_rotate, -1.0, 1.0) * current_limit));
+        set_speed(static_cast<int16_t>(std::clamp(speed_move, -1.0, 1.0) * current_limit_),
+            static_cast<int16_t>(std::clamp(speed_rotate, -1.0, 1.0) * current_limit_));
     }
 
-    void set_pid_param(Pid& pid_move, Pid& pid_rotate)
+    void set_pid_param(const Pid& pid_move, const Pid& pid_rotate)
     {
-        pid_move_.reset(&pid_move);
-        pid_rotate_.reset(&pid_rotate);
+        pid_move_ = pid_move;
+        pid_rotate_ = pid_rotate;
     }
 
     void set_pid_param(
         const double& p_m, const double& i_m, const double& d_m,
         const double& p_r, const double& i_r, const double& d_r)
     {
-        pid_move_->set(p_m, i_m, d_m);
-        pid_rotate_->set(p_r, i_r, d_r);
+        pid_move_.set(p_m, i_m, d_m);
+        pid_rotate_.set(p_r, i_r, d_r);
     }
 
     void set_speed_with_pid(const double& speed_move, const double& speed_rotate)
     {
-        assert(pid_move_->is_initialized());
-        assert(pid_rotate_->is_initialized());
+        assert(pid_move_.is_initialized());
+        assert(pid_rotate_.is_initialized());
 
-        auto real_speed_move = static_cast<double>(status_move_.speed) / current_limit;
-        auto real_speed_rotate = static_cast<double>(status_rotate_.speed) / current_limit;
+        auto real_speed_move = static_cast<double>(status_move_.speed) / speed_move_max_;
+        auto real_speed_rotate = static_cast<double>(status_rotate_.speed) / speed_rotate_max_;
 
-        auto output_move = pid_move_->update(real_speed_move, speed_move);
-        auto output_rotate = pid_rotate_->update(real_speed_rotate, speed_rotate);
+        auto output_move = pid_move_.update(real_speed_move, speed_move);
+        auto output_rotate = pid_rotate_.update(real_speed_rotate, speed_rotate);
 
         set_speed(output_move, output_rotate);
     }
 
     void reset()
     {
-        pid_move_->reset();
-        pid_rotate_->reset();
+        pid_move_.reset();
+        pid_rotate_.reset();
 
         set_speed(0., 0.);
     }
@@ -196,8 +198,8 @@ private:
     Status status_move_;
     Status status_rotate_;
 
-    std::unique_ptr<Pid> pid_move_;
-    std::unique_ptr<Pid> pid_rotate_;
+    Pid pid_move_;
+    Pid pid_rotate_;
 
     base::CanClient client_move_;
     base::CanClient client_rotate_;

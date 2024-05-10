@@ -22,3 +22,13 @@ inline auto button_1 = base::GPIO(BUTTON_1_GPIO_Port, BUTTON_1_Pin);
 inline auto button_2 = base::GPIO(BUTTON_2_GPIO_Port, BUTTON_2_Pin);
 
 }
+
+namespace param {
+inline double p_m = 10;
+inline double i_m = 0;
+inline double d_m = 0;
+inline double p_r = 1;
+inline double i_r = 0;
+inline double d_r = 0;
+
+}
