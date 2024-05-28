@@ -7,7 +7,9 @@ namespace global {
 // constexpr char* ssid = "Alliance_SentryDebug";
 // constexpr char* password = "sentryno1";
 
-constexpr char* ssid = "AllianceTeam2.4G";
+// constexpr char* ssid = "AllianceTeam2.4G";
+// constexpr char* password = "rm-alliance.icu";
+constexpr char* ssid = "auto-aimer-target";
 constexpr char* password = "rm-alliance.icu";
 
 constexpr char* host_name = "esp32_auto_aimer_target";
@@ -60,31 +62,41 @@ void sync_with_stm32()
 
 void setup()
 {
+    pinMode(global::led_pin, OUTPUT);
+    digitalWrite(global::led_pin, HIGH);
+
     Serial.begin(115200);
     Serial2.begin(115200, SERIAL_8N1, global::rx_pin, global::tx_pin);
 
-    WiFi.setHostname(global::host_name);
-    WiFi.begin(global::ssid, global::password);
+    // Connect to wifi as client
+    //
+    // WiFi.setHostname(global::host_name);
+    // WiFi.begin(global::ssid, global::password);
+    //
+    // while (WiFi.status() != WL_CONNECTED) {
+    //     digitalWrite(global::led_pin, HIGH);
+    //     delay(400);
+    //     digitalWrite(global::led_pin, LOW);
+    //     delay(100);
 
-    while (WiFi.status() != WL_CONNECTED) {
-        delay(500);
-        Serial.println(WiFi.status());
-        Serial.println("Connecting to WiFi...");
-    }
+    //     Serial.println(WiFi.status());
+    //     Serial.println("Connecting to WiFi...");
+    // }
+    // Serial.println(WiFi.status());
+    // Serial.println("Connected.");
+    // Serial.println(WiFi.localIP().toString());
 
-    pinMode(global::led_pin, OUTPUT);
+    // Work as wifi server
+    //
+    WiFi.softAPConfig(
+        IPAddress(192, 168, 233, 233),
+        IPAddress(192, 168, 233, 0),
+        IPAddress(255, 255, 255, 0));
+    WiFi.softAP(global::ssid, global::password);
+
+    Serial.println(WiFi.softAPIP());
 
     digitalWrite(global::led_pin, LOW);
-    delay(100);
-    digitalWrite(global::led_pin, HIGH);
-    delay(100);
-    digitalWrite(global::led_pin, LOW);
-    delay(100);
-    digitalWrite(global::led_pin, HIGH);
-
-    Serial.println(WiFi.status());
-    Serial.println("Connected.");
-    Serial.println(WiFi.localIP().toString());
 
     global::server.on("/", global::index_handler);
     global::server.on("/slider", global::sync_handler);
